@@ -9,14 +9,18 @@ class users_controller extends base_controller {
         echo "This is the index page";
     }
 
-    public function signup() {
+    public function signup($error = NULL) {
 
         # Set up the view
         $this->template->content = View::instance('v_users_signup');
         $this->template->title   = "Sign Up";
        
+        # Append error message (if any) to the view
+        $this->template->content->error = $error;
+
         # CSS/JS includes
         $client_files_head = Array(
+            "/css/error.css",
             "/js/jquery-1.10.2.min.js",
             "/js/jstz-1.0.4.min.js");
         $this->template->client_files_head = Utils::load_client_files($client_files_head);
@@ -36,25 +40,46 @@ class users_controller extends base_controller {
 
     public function p_signup() {
                     
-        # Set time created /modified to current time
-        $_POST['created']  = Time::now();
-        $_POST['modified']  = Time::now();
+        # Sanitize the user entered data to prevent any funny-business (re: SQL Injection Attacks)
+        $_POST = DB::instance(DB_NAME)->sanitize($_POST);
 
-        # Encrypt the password
-        $_POST['password'] = sha1(PASSWORD_SALT.$_POST['password']);
+        # Search the db for a user with the specified email
+        # Retrieve the user's token if it's available
+        $q = "SELECT token 
+            FROM users 
+            WHERE email = '".$_POST['email']."'";
 
-        # Create an encrypted token via their email address and a random string
-        $_POST['token']    = sha1(TOKEN_SALT.$_POST['email'].Utils::generate_random_string());
-        
-        #echo "<pre>";
-        #print_r($_POST);
-        #echo "<pre>";
-        
-        # Insert the information into the database
-        DB::instance(DB_NAME)->insert_row('users', $_POST);
-        
-        # Send them to the login page
-        Router::redirect('/users/login');
+        $token = DB::instance(DB_NAME)->select_field($q);
+
+        # If the user exits, return to to the signup page
+        if($token) {
+
+            # Send them back to the sign-up page
+            Router::redirect("/users/signup/error");
+
+        # Otherwise, the signup succeeded and the user can be added to the database
+        } else {
+
+            # Set time created /modified to current time
+            $_POST['created']  = Time::now();
+            $_POST['modified']  = Time::now();
+
+            # Encrypt the password
+            $_POST['password'] = sha1(PASSWORD_SALT.$_POST['password']);
+
+            # Create an encrypted token via their email address and a random string
+            $_POST['token']    = sha1(TOKEN_SALT.$_POST['email'].Utils::generate_random_string());
+            
+            #echo "<pre>";
+            #print_r($_POST);
+            #echo "<pre>";
+            
+            # Insert the information into the database
+            DB::instance(DB_NAME)->insert_row('users', $_POST);
+            
+            # Send them to the login page
+            Router::redirect('/users/login');
+        }
         
     }
 

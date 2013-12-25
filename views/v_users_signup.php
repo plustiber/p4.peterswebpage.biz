@@ -15,6 +15,13 @@
 
 		<i>Items marked with * are required</i><br><br>
 
+	    <?php if(isset($error)): ?>
+	        <div class='error'>
+	            Signup failed. Specified email already in use.
+	        </div>
+	        <br>
+	    <?php endif; ?>
+		
 		<input type='submit' value='Create account'>
 		
 	</form>
